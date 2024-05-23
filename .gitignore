@@ -1,0 +1,10 @@
+__pycache__/
+.vscode/
+# virtual environment in any folder
+*/venv
+
+venv/*
+
+venv/
+
+MS-Teams-background-changer/venv/

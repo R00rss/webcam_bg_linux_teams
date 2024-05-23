@@ -1,0 +1,30 @@
+
+
+[V4L2]
+# add virtual camera device ID
+virtualDeviceID = /dev/video7
+
+[stream]
+# stream image dimensions
+# recommended to keep the same camera properties for better performance.
+height = 480
+width = 640
+channel = 3
+fps = 20
+# change input camera device ID (just add the ID number alone)
+cameraID = /dev/video0
+
+[model]
+# AI model path
+path = models/lite-model_deeplabv3_1_metadata_2.tflite
+
+[background]
+# if blur = yes, only background will be blurred, background image is not added
+# if blur = no, custom background image is added, blur effect is not applied
+# blur_intensity should always be an odd number
+blur = no
+blur_intensity = 11
+# add custom images in the bg_images folder and edit the path to the bg_image
+bg_image = bg_images/moderna.jpg
+
+
