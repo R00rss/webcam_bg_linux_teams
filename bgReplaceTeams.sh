@@ -1,82 +1,62 @@
 #!/bin/bash
 
-# Cargar variables de entorno desde el archivo .env
-if [ -f .env ]; then
-    export $(grep -v '^#' .env | xargs)
-fi
-
-virutal_device=$(v4l2-ctl --list-devices | grep -A 1 "Weffe" | tail -n 1 | awk '{print $1}')
-# another way to get the device name
-# virutal_device=$(v4l2-ctl --list-devices | awk '/Weffe/ {getline; print}')
-
-
-if [ -z "$virutal_device" ]; then
-    echo "No virtual camera found, Executing weffe -a"
-    weffe -a
-    device=$(v4l2-ctl --list-devices | grep -A 1 "Weffe" | tail -n 1 | awk '{print $1}')
-fi
-
-echo "Using virutal device $virutal_device"
-
-# get the first integrated camera
+# Get virtual device and integrated camera
+virtual_device=$(v4l2-ctl --list-devices | grep -A 1 "Weffe" | tail -n 1 | awk '{print $1}')
 camera=$(v4l2-ctl --list-devices | grep -A 1 "Integrated" | tail -n 1 | awk '{print $1}')
 
-repo_ssh="git@github.com:ron-rosenko/MS-Teams-background-changer.git"
+# Check if virtual device is found
+if [ -z "$virtual_device" ]; then
+    echo "No virtual camera found. Executing weffe -a..."
+    if ! weffe -a; then
+        echo "Error: Failed to execute weffe -a"
+        exit 1
+    fi
+    virtual_device=$(v4l2-ctl --list-devices | grep -A 1 "Weffe" | tail -n 1 | awk '{print $1}')
+fi
 
-project_is_cloned=0
-venv_exist_before=0
+echo "Using virtual device $virtual_device"
+
+repo_ssh="git@github.com:prabhakar-sivanesan/MS-Teams-background-changer.git"
 project_dir="MS-Teams-background-changer"
 
-echo camara $camera
-echo device $virutal_device
-echo repo $repo_ssh
-echo project $project_dir
-
-# check if directory project exists and set a flag if it does
-if [ -d $project_dir ]; then
-    echo "Directory already exists"
-    project_is_cloned=1
-fi
-
-if [ $project_is_cloned -eq 0 ]; then
-    # Clone the project
+# Clone the project if not already cloned
+if [ ! -d "$project_dir" ]; then
     echo "Cloning project..."
-    git clone $repo_ssh
+    if ! git clone "$repo_ssh"; then
+        echo "Error: Failed to clone the project"
+        exit 1
+    fi
 fi
 
-# Change directory to the project
-cd $project_dir
+cd "$project_dir" || exit
 
-# Check if virtual environment exists and create it if it doesn't
-if [ -d venv ]; then
-    echo "Virtual environment already exists"
-    venv_exist_before=1
-else
+# Check if virtual environment exists and create it if not
+if [ ! -d "venv" ]; then
     echo "Creating virtual environment..."
-    python3 -m venv venv
+    python3 -m venv venv || {
+        echo "Error: Failed to create virtual environment"
+        exit 1
+    }
 fi
 
-# Activate the virtual environment
-source venv/bin/activate
+# Activate virtual environment
+source venv/bin/activate || {
+    echo "Error: Failed to activate virtual environment"
+    exit 1
+}
 
-# Install the required packages
-if [ $venv_exist_before -eq 0 ]; then
-    echo "Installing packages..."
-    pip install -r requirements.txt
-fi
+# Install required packages
+echo "Installing required packages..."
+pip install -r requirements.txt || {
+    echo "Error: Failed to install required packages"
+    exit 1
+}
 
-echo "Setting the variables in the config file..."
-
-blur="no"
-
-# chance variables in ./config.yaml
-sed -i "s|^\(virtualDeviceID\s*=\s*\).*$|\1$virutal_device|" config.yaml
-
+# Set variables in the config file
+sed -i "s|^\(virtualDeviceID\s*=\s*\).*$|\1$virtual_device|" config.yaml
 sed -i "s|^\(cameraID\s*=\s*\).*$|\1$camera|" config.yaml
-
-sed -i "s|^\(blur\s*=\s*\).*$|\1$blur|" config.yaml
-
-echo "Running the script..."
+sed -i "s|^\(blur\s*=\s*\).*$|\1no|" config.yaml
 
 # Run the script
+echo "Running the script..."
 python3 main.py
